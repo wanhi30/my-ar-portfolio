@@ -2,37 +2,75 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moving Print: What are we...</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://unpkg.com/aframe-chromakey-material/dist/aframe-chromakey-material.min.js"></script>
+
+    <style>
+      body { margin: 0; overflow: hidden; }
+      /* Optional: Loading Screen to hide the ugly white flash */
+      #scanning-overlay {
+        display: flex; align-items: center; justify-content: center;
+        position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+        background: transparent; z-index: 2;
+        pointer-events: none; /* Let clicks pass through */
+      }
+      .hidden { display: none !important; }
+    </style>
   </head>
   <body>
+    
+    <div id="scanning-overlay" class="hidden">
+       </div>
+
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind;" 
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF:0.0001; filterBeta: 0.001;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
 
       <a-assets>
-        <video id="vid" src="./video.mp4" playsinline webkit-playsinline autoplay loop muted crossorigin="anonymous"></video>
+        <video 
+          id="vid" 
+          src="./video.mp4" 
+          preload="auto" 
+          loop="true" 
+          crossorigin="anonymous" 
+          playsinline 
+          webkit-playsinline>
+        </video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
-        
-        <a-video 
-          src="#vid" 
+        <a-plane 
+          material="shader: chromakey; src: #vid; color: 0.1 0.9 0.1" 
           position="0 0 0" 
           height="0.312" 
           width="1" 
-          rotation="0 0 0"
-          material="shader: chromakey; src: #vid; color: 0.1 0.9 0.2">
-        </a-video>
-        
+          rotation="0 0 0">
+        </a-plane>
       </a-entity>
     </a-scene>
+
+    <script>
+      // Workaround for iOS video autoplay policies
+      const scene = document.querySelector('a-scene');
+      const vid = document.querySelector('#vid');
+
+      scene.addEventListener('arReady', (event) => {
+        // Once AR is ready, we try to play (muted first to satisfy browsers)
+        vid.muted = true; 
+        vid.play();
+      });
+
+      // Optional: Unmute when the user taps the screen
+      document.body.addEventListener('click', () => {
+        vid.muted = false;
+      });
+    </script>
   </body>
 </html>
-
