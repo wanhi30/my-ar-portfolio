@@ -3,16 +3,13 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Moving Print: What are we...</title>
+    <title>Diagnostic Test</title>
 
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://unpkg.com/aframe-chromakey-material/dist/aframe-chromakey-material.min.js"></script>
 
     <style>
       body { margin: 0; overflow: hidden; font-family: sans-serif; }
-      
-      /* 2. The "Start AR" Overlay - CRITICAL for iOS Video */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.8); z-index: 999;
@@ -21,19 +18,27 @@
       #start-btn {
         padding: 15px 30px; font-size: 24px; font-weight: bold;
         color: white; background: #ff0055; border: none; border-radius: 50px;
-        cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        cursor: pointer;
       }
       .hidden { display: none !important; }
+      /* Debug Console on screen */
+      #debug-console {
+        position: fixed; top: 10px; left: 10px; z-index: 1000;
+        background: rgba(0,0,0,0.7); color: lime; padding: 10px;
+        font-family: monospace; font-size: 14px; pointer-events: none;
+      }
     </style>
   </head>
   <body>
 
+    <div id="debug-console">Status: Waiting for user...</div>
+
     <div id="overlay">
-      <button id="start-btn">Enter AR Experience</button>
+      <button id="start-btn">START EXPERIENCE</button>
     </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets(2).mind; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5" 
+      mindar-image="imageTargetSrc: ./targets(2).mind; filterMinCF:0.0001; filterBeta: 0.001;" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -54,14 +59,18 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity mindar-image-target="targetIndex: 0">
+        
         <a-plane 
           id="video-plane"
-          material="shader: chromakey; src: #vid; color: 0.1 0.9 0.1" 
+          material="shader: flat; src: #vid" 
           position="0 0 0" 
           height="0.312" 
           width="1" 
           rotation="0 0 0">
         </a-plane>
+
+        <a-text value="Tracking..." position="0 0.4 0" align="center" color="red"></a-text>
+
       </a-entity>
     </a-scene>
 
@@ -69,28 +78,44 @@
       const startBtn = document.querySelector('#start-btn');
       const overlay = document.querySelector('#overlay');
       const vid = document.querySelector('#vid');
-      const scene = document.querySelector('a-scene');
+      const consoleDiv = document.querySelector('#debug-console');
 
-      // 4. User Interaction Logic
-      // We wait for the user to click "Enter AR" to unlock audio/video
+      // Helper to update on-screen debug
+      function log(msg) {
+        consoleDiv.innerText = "Status: " + msg;
+        console.log(msg);
+      }
+
       startBtn.addEventListener('click', () => {
-        overlay.classList.add('hidden'); // Hide button
-        vid.play(); // Force play
-        vid.pause(); // Pause immediately (waiting for target)
-        vid.currentTime = 0; // Reset
+        overlay.classList.add('hidden');
+        vid.play().then(() => {
+          log("Video Started (Promise Resolved)");
+          vid.pause(); // Pause until target found
+        }).catch(e => {
+          log("Video Error: " + e.message);
+        });
       });
 
-      // 5. Play only when target is found
       const target = document.querySelector('[mindar-image-target]');
+      
       target.addEventListener('targetFound', () => {
-        console.log("Target Found");
+        log("Target Found - Playing Video");
         vid.play();
       });
 
       target.addEventListener('targetLost', () => {
-        console.log("Target Lost");
+        log("Target Lost - Pausing");
         vid.pause();
       });
+
+      // Monitor Video State
+      setInterval(() => {
+        if (!vid.paused && vid.readyState >= 2) {
+           // If video is playing
+        } else if (vid.error) {
+           log("CRITICAL ERROR: " + vid.error.code);
+        }
+      }, 1000);
     </script>
   </body>
 </html>
