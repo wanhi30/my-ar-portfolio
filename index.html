@@ -2,30 +2,38 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Moving Print: What are we...</title>
+
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://unpkg.com/aframe-chromakey-material/dist/aframe-chromakey-material.min.js"></script>
 
     <style>
-      body { margin: 0; overflow: hidden; }
-      /* Optional: Loading Screen to hide the ugly white flash */
-      #scanning-overlay {
-        display: flex; align-items: center; justify-content: center;
-        position: absolute; left: 0; right: 0; top: 0; bottom: 0;
-        background: transparent; z-index: 2;
-        pointer-events: none; /* Let clicks pass through */
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      
+      /* 2. The "Start AR" Overlay - CRITICAL for iOS Video */
+      #overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.8); z-index: 999;
+        display: flex; justify-content: center; align-items: center; flex-direction: column;
+      }
+      #start-btn {
+        padding: 15px 30px; font-size: 24px; font-weight: bold;
+        color: white; background: #ff0055; border: none; border-radius: 50px;
+        cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
       }
       .hidden { display: none !important; }
     </style>
   </head>
   <body>
-    
-    <div id="scanning-overlay" class="hidden">
-       </div>
+
+    <div id="overlay">
+      <button id="start-btn">Enter AR Experience</button>
+    </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF:0.0001; filterBeta: 0.001;" 
+      mindar-image="imageTargetSrc: ./targets(2).mind; filterMinCF:0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 5" 
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -47,6 +55,7 @@
 
       <a-entity mindar-image-target="targetIndex: 0">
         <a-plane 
+          id="video-plane"
           material="shader: chromakey; src: #vid; color: 0.1 0.9 0.1" 
           position="0 0 0" 
           height="0.312" 
@@ -57,19 +66,30 @@
     </a-scene>
 
     <script>
-      // Workaround for iOS video autoplay policies
-      const scene = document.querySelector('a-scene');
+      const startBtn = document.querySelector('#start-btn');
+      const overlay = document.querySelector('#overlay');
       const vid = document.querySelector('#vid');
+      const scene = document.querySelector('a-scene');
 
-      scene.addEventListener('arReady', (event) => {
-        // Once AR is ready, we try to play (muted first to satisfy browsers)
-        vid.muted = true; 
+      // 4. User Interaction Logic
+      // We wait for the user to click "Enter AR" to unlock audio/video
+      startBtn.addEventListener('click', () => {
+        overlay.classList.add('hidden'); // Hide button
+        vid.play(); // Force play
+        vid.pause(); // Pause immediately (waiting for target)
+        vid.currentTime = 0; // Reset
+      });
+
+      // 5. Play only when target is found
+      const target = document.querySelector('[mindar-image-target]');
+      target.addEventListener('targetFound', () => {
+        console.log("Target Found");
         vid.play();
       });
 
-      // Optional: Unmute when the user taps the screen
-      document.body.addEventListener('click', () => {
-        vid.muted = false;
+      target.addEventListener('targetLost', () => {
+        console.log("Target Lost");
+        vid.pause();
       });
     </script>
   </body>
