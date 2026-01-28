@@ -2,41 +2,54 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Exhibition AR</title>
+    <title>Square AR</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
+      .mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning { display: none !important; }
       body { margin: 0; overflow: hidden; background: black; }
-      
-      /* START BUTTON */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 9999;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
+        background: black; z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
       }
       #start-btn {
-        padding: 20px 50px; font-size: 24px; font-weight: bold;
-        color: white; background: #E60023; border: none; 
+        padding: 20px 40px; font-size: 20px; font-weight: bold;
+        color: white; background: transparent; border: 2px solid white; 
         border-radius: 50px; cursor: pointer; text-transform: uppercase;
       }
-      
-      /* DEBUG TEXT - Tells us what is wrong */
-      #debug-text {
-        position: fixed; top: 20px; left: 0; width: 100%;
-        text-align: center; color: yellow; font-weight: bold; font-size: 20px;
-        z-index: 10000; text-shadow: 2px 2px 0 #000; pointer-events: none;
-      }
-      
       .hidden { display: none !important; }
     </style>
+
+    <script>
+      AFRAME.registerShader('chromakey', {
+        schema: {
+          src: { type: 'map', is: 'uniform' },
+          color: { type: 'vec3', default: { x: 0.0, y: 1.0, z: 0.0 }, is: 'uniform' },
+          similarity: { type: 'float', default: 0.3, is: 'uniform' },
+          smoothness: { type: 'float', default: 0.1, is: 'uniform' }
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+        `,
+        fragmentShader: `
+          uniform sampler2D src; uniform vec3 color; uniform float similarity; uniform float smoothness; varying vec2 vUv;
+          void main() {
+            vec4 texColor = texture2D(src, vUv);
+            float dist = length(texColor.rgb - color);
+            float mask = smoothstep(similarity, similarity + smoothness, dist);
+            gl_FragColor = vec4(texColor.rgb, texColor.a * mask);
+          }
+        `
+      });
+    </script>
   </head>
   <body>
 
-    <div id="debug-text">Status: Waiting for Start...</div>
-
     <div id="overlay">
-      <button id="start-btn">ENTER AR</button>
+      <button id="start-btn">Start</button>
     </div>
 
     <a-scene 
@@ -63,9 +76,9 @@
       <a-entity mindar-image-target="targetIndex: 0">
         <a-plane 
           id="video-plane"
-          src="#vid" 
+          material="shader: chromakey; src: #vid; color: 0.0 1.0 0.0" 
           position="0 0 0" 
-          height="1.237" 
+          height="1" 
           width="1" 
           rotation="0 0 0">
         </a-plane>
@@ -76,36 +89,19 @@
       const startBtn = document.querySelector('#start-btn');
       const overlay = document.querySelector('#overlay');
       const vid = document.querySelector('#vid');
-      const debug = document.querySelector('#debug-text');
 
-      // 1. CLICK START
       startBtn.addEventListener('click', () => {
         overlay.classList.add('hidden');
-        debug.innerText = "Status: Camera Active. Scan Image.";
-        
-        // Try to play video to unlock it
-        vid.play().then(() => {
-          vid.pause();
-          vid.currentTime = 0;
-        }).catch((e) => {
-          debug.innerText = "Error: Video Failed to Load!";
-          console.error(e);
-        });
+        vid.play();
+        vid.pause();
+        vid.currentTime = 0;
       });
 
-      // 2. TARGET FOUND
       const target = document.querySelector('[mindar-image-target]');
-      
       target.addEventListener('targetFound', () => {
-        debug.innerText = "Status: TARGET FOUND!";
-        debug.style.color = "lime"; // Turn text green
         vid.play();
       });
-
-      // 3. TARGET LOST
       target.addEventListener('targetLost', () => {
-        debug.innerText = "Status: Scanning...";
-        debug.style.color = "yellow";
         vid.pause();
       });
     </script>
