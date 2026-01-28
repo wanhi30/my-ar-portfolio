@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New Project AR</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+    <style>
+      /* HIDE UI */
+      .mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning {
+        display: none !important;
+      }
+      body { margin: 0; overflow: hidden; background: black; }
+      
+      /* START BUTTON (Required for iPhone) */
+      #overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: black; z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
+      }
+      #start-btn {
+        padding: 20px 40px; font-size: 20px; font-weight: bold;
+        color: white; background: transparent; border: 2px solid white; 
+        border-radius: 50px; cursor: pointer; text-transform: uppercase;
+      }
+      .hidden { display: none !important; }
+    </style>
+
+    <script>
+      AFRAME.registerShader('chromakey', {
+        schema: {
+          src: { type: 'map', is: 'uniform' },
+          color: { type: 'vec3', default: { x: 0.1, y: 0.9, z: 0.1 }, is: 'uniform' },
+          similarity: { type: 'float', default: 0.3, is: 'uniform' },
+          smoothness: { type: 'float', default: 0.1, is: 'uniform' }
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+        `,
+        fragmentShader: `
+          uniform sampler2D src; uniform vec3 color; uniform float similarity; uniform float smoothness; varying vec2 vUv;
+          void main() {
+            vec4 texColor = texture2D(src, vUv);
+            float dist = length(texColor.rgb - color);
+            float mask = smoothstep(similarity, similarity + smoothness, dist);
+            gl_FragColor = vec4(texColor.rgb, texColor.a * mask);
+          }
+        `
+      });
+    </script>
+  </head>
+  <body>
+
+    <div id="overlay">
+      <button id="start-btn">View Artwork</button>
+    </div>
+
+    <a-scene 
+      mindar-image="imageTargetSrc: targets.mind; filterMinCF:0.0001; filterBeta: 0.001; missTolerance: 10; uiLoading: no; uiScanning: no;" 
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
+
+      <a-assets>
+        <video 
+          id="vid" 
+          src="asset.mp4" 
+          preload="auto" 
+          loop="true" 
+          crossorigin="anonymous" 
+          playsinline 
+          webkit-playsinline>
+        </video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-plane 
+          id="video-plane"
+          material="shader: chromakey; src: #vid; color: 0.1 0.9 0.1" 
+          position="0 0 0" 
+          height="1.236" 
+          width="1" 
+          rotation="0 0 0">
+        </a-plane>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      const startBtn = document.querySelector('#start-btn');
+      const overlay = document.querySelector('#overlay');
+      const vid = document.querySelector('#vid');
+
+      startBtn.addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        vid.play();
+        vid.pause();
+        vid.currentTime = 0;
+      });
+
+      const target = document.querySelector('[mindar-image-target]');
+      target.addEventListener('targetFound', () => {
+        vid.play();
+      });
+      target.addEventListener('targetLost', () => {
+        vid.pause();
+      });
+    </script>
+  </body>
+</html>
