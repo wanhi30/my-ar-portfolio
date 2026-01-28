@@ -2,18 +2,18 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>New Project AR</title>
+    <title>New AR Project</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      /* HIDE UI */
+      /* Hide "Scanning" UI */
       .mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning {
         display: none !important;
       }
       body { margin: 0; overflow: hidden; background: black; }
       
-      /* START BUTTON (Required for iPhone) */
+      /* Start Button (Required for Mobile) */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: black; z-index: 9999;
@@ -95,6 +95,7 @@
       const overlay = document.querySelector('#overlay');
       const vid = document.querySelector('#vid');
 
+      // 1. User Interaction (Unlocks Video)
       startBtn.addEventListener('click', () => {
         overlay.classList.add('hidden');
         vid.play();
@@ -102,10 +103,13 @@
         vid.currentTime = 0;
       });
 
+      // 2. Target Found (Plays Video)
       const target = document.querySelector('[mindar-image-target]');
       target.addEventListener('targetFound', () => {
         vid.play();
       });
+
+      // 3. Target Lost (Pauses Video)
       target.addEventListener('targetLost', () => {
         vid.pause();
       });
