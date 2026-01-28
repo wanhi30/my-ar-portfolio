@@ -2,35 +2,41 @@
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Simple AR</title>
+    <title>Exhibition AR</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
     <style>
-      /* Hide Scanning UI */
-      .mindar-ui-overlay, .mindar-ui-loading, .mindar-ui-scanning {
-        display: none !important;
-      }
       body { margin: 0; overflow: hidden; background: black; }
       
-      /* Start Button */
+      /* START BUTTON */
       #overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: black; z-index: 9999;
-        display: flex; justify-content: center; align-items: center;
+        background: rgba(0,0,0,0.9); z-index: 9999;
+        display: flex; flex-direction: column; justify-content: center; align-items: center;
       }
       #start-btn {
-        padding: 20px 40px; font-size: 20px; font-weight: bold;
-        color: white; background: transparent; border: 2px solid white; 
+        padding: 20px 50px; font-size: 24px; font-weight: bold;
+        color: white; background: #E60023; border: none; 
         border-radius: 50px; cursor: pointer; text-transform: uppercase;
       }
+      
+      /* DEBUG TEXT - Tells us what is wrong */
+      #debug-text {
+        position: fixed; top: 20px; left: 0; width: 100%;
+        text-align: center; color: yellow; font-weight: bold; font-size: 20px;
+        z-index: 10000; text-shadow: 2px 2px 0 #000; pointer-events: none;
+      }
+      
       .hidden { display: none !important; }
     </style>
   </head>
   <body>
 
+    <div id="debug-text">Status: Waiting for Start...</div>
+
     <div id="overlay">
-      <button id="start-btn">Start</button>
+      <button id="start-btn">ENTER AR</button>
     </div>
 
     <a-scene 
@@ -56,6 +62,7 @@
 
       <a-entity mindar-image-target="targetIndex: 0">
         <a-plane 
+          id="video-plane"
           src="#vid" 
           position="0 0 0" 
           height="1.237" 
@@ -69,21 +76,36 @@
       const startBtn = document.querySelector('#start-btn');
       const overlay = document.querySelector('#overlay');
       const vid = document.querySelector('#vid');
+      const debug = document.querySelector('#debug-text');
 
+      // 1. CLICK START
       startBtn.addEventListener('click', () => {
         overlay.classList.add('hidden');
-        // Unmute and Play
-        vid.muted = false; 
-        vid.play();
-        vid.pause();
-        vid.currentTime = 0;
+        debug.innerText = "Status: Camera Active. Scan Image.";
+        
+        // Try to play video to unlock it
+        vid.play().then(() => {
+          vid.pause();
+          vid.currentTime = 0;
+        }).catch((e) => {
+          debug.innerText = "Error: Video Failed to Load!";
+          console.error(e);
+        });
       });
 
+      // 2. TARGET FOUND
       const target = document.querySelector('[mindar-image-target]');
+      
       target.addEventListener('targetFound', () => {
+        debug.innerText = "Status: TARGET FOUND!";
+        debug.style.color = "lime"; // Turn text green
         vid.play();
       });
+
+      // 3. TARGET LOST
       target.addEventListener('targetLost', () => {
+        debug.innerText = "Status: Scanning...";
+        debug.style.color = "yellow";
         vid.pause();
       });
     </script>
